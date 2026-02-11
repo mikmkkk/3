@@ -389,9 +389,22 @@
     .config-name {
       font-weight: 500;
       overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 0.875rem;
+      min-width: 0;
+    }
+
+    .config-name span {
+      display: inline-block;
+    }
+
+    .config-name.marquee span {
+      animation: marquee 10s linear infinite;
+    }
+
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
     }
 
     .config-copy {
@@ -666,14 +679,25 @@
 
                     const rndr = () => {
                       const f = gFc(), tp = Math.ceil(f.length / IPP), st = (cp - 1) * IPP, pi = f.slice(st, st + IPP);
-                      if (conf.length === 0) { $('uploadSection').classList.remove('hidden'); $('configSection').classList.add('hidden'); $('searchRow').classList.add('hidden'); $('normalActions').classList.add('hidden'); $('selectActions').classList.add('hidden'); $('footerText').textContent = 'Upload or paste config to get started'; return; }
+                      if (conf.length === 0) {
+                        $('uploadSection').classList.remove('hidden'); $('configSection').classList.add('hidden'); $('searchRow').classList.add('hidden'); $('normalActions').classList.add('hidden'); $('selectActions').classList.add('hidden'); $('batchCopyBtn').classList.add('hidden', gSc() === 0); $('selectedCount').textContent = gSc();
+                        $('statsText').textContent = f.length + ' configs' + (sq ? ` matching "${sq}"` : ''); $('footerText').textContent = conf.length + ' configs loaded • Long press to select multiple';
+                        return;
+                      }
                       $('uploadSection').classList.add('hidden'); $('configSection').classList.remove('hidden'); $('searchRow').classList.remove('hidden'); $('normalActions').classList.toggle('hidden', isSel); $('selectActions').classList.toggle('hidden', !isSel); $('batchCopyBtn').classList.toggle('hidden', gSc() === 0); $('selectedCount').textContent = gSc();
                       $('statsText').textContent = f.length + ' configs' + (sq ? ` matching "${sq}"` : ''); $('footerText').textContent = conf.length + ' configs loaded • Long press to select multiple';
                       if (f.length === 0) { $('configGrid').classList.add('hidden'); $('pagination').classList.add('hidden'); $('emptyState').classList.remove('hidden'); return; }
                       $('configGrid').classList.remove('hidden'); $('emptyState').classList.add('hidden');
                       let h = '';
-                      for (const c of pi) { h += `<div class="config-card${c.selected ? ' selected' : ''}" data-id="${c.id}"><div class="config-inner">${isSel ? `<div class="config-checkbox${c.selected ? ' checked' : ''}" data-id="${c.id}"></div>` : ''}<div class="config-content"><div class="config-meta"><span class="config-protocol protocol-${c.protocol}">${gIc(c.protocol)} ${c.protocol.toUpperCase()}</span>${c.address ? `<span class="config-address">${c.address}:${c.port}</span>` : ''}</div><p class="config-name">${esc(c.remarks)}</p></div><button class="config-copy" data-id="${c.id}" title="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></div>`; }
+                      for (const c of pi) { h += `<div class="config-card${c.selected ? ' selected' : ''}" data-id="${c.id}"><div class="config-inner">${isSel ? `<div class="config-checkbox${c.selected ? ' checked' : ''}" data-id="${c.id}"></div>` : ''}<div class="config-content"><div class="config-meta"><span class="config-protocol protocol-${c.protocol}">${gIc(c.protocol)} ${c.protocol.toUpperCase()}</span>${c.address ? `<span class="config-address">${c.address}:${c.port}</span>` : ''}</div><p class="config-name"><span>${esc(c.remarks)}</span></p></div><button class="config-copy" data-id="${c.id}" title="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></div>`; }
                       $('configGrid').innerHTML = h;
+
+                      document.querySelectorAll('.config-name').forEach(el => {
+                        if (el.scrollWidth > el.clientWidth) {
+                          el.classList.add('marquee');
+                        }
+                      });
+
                       document.querySelectorAll('.config-card').forEach(el => { const id = el.dataset.id; el.onclick = () => { if (isSel) tgSl(id); }; el.onmousedown = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.onmouseup = el.onmouseleave = () => { if (lpt) clearTimeout(lpt); }; el.ontouchstart = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.ontouchend = () => { if (lpt) clearTimeout(lpt); }; });
                       document.querySelectorAll('.config-copy').forEach(el => { el.onclick = e => { e.stopPropagation(); const c = conf.find(x => x.id === el.dataset.id); if (c) { dlg = c; isBat = !1; opDlg(c.remarks); } }; });
                       document.querySelectorAll('.config-checkbox').forEach(el => { el.onclick = e => { e.stopPropagation(); tgSl(el.dataset.id); }; });
@@ -709,7 +733,7 @@
                       $('v2rayBtn').onclick = () => cpLnk('v2ray');
                       $('npvtBtn').onclick = () => cpLnk('npvt');
                       if (localStorage.getItem('dark') === 'false') tgThm();
-                      try { const r = await fetch('conf.json'); if (r.ok) { const t = await r.text(); parse(t); } else { rndr(); } } catch (e) { rndr(); }
+                      try { const r = await fetch('9a35a631-079a-11f1-b1e6-ba8a7353a182.json'); if (r.ok) { const t = await r.text(); parse(t); } else { rndr(); } } catch (e) { rndr(); }
                     };
 
                     initApp();
