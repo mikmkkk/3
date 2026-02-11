@@ -29,7 +29,8 @@
       --emerald: oklch(0.6 0.15 145);
       --amber: oklch(0.7 0.15 70);
       --sky: oklch(0.65 0.15 220);
-      
+      --rose: oklch(0.65 0.15 350);
+      --purple: oklch(0.6 0.15 290);
     }
 
     .dark {
@@ -364,10 +365,19 @@
     }
 
     .protocol-wireguard {
+      background: oklch(from var(--purple) l c h / 0.2);
+      color: var(--purple);
+    }
+
+    .protocol-vmess {
       background: oklch(from var(--sky) l c h / 0.2);
       color: var(--sky);
     }
 
+    .protocol-ss {
+      background: oklch(from var(--rose) l c h / 0.2);
+      color: var(--rose);
+    }
     .config-address {
       font-size: 0.75rem;
       color: var(--muted-foreground);
@@ -526,126 +536,189 @@
   
   <body>
     <script>
-      (function () {
-        const pwd = '4293';
-        const lock = document.createElement('div');
-        lock.id = 'lock';
-        lock.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:oklch(0.145 0 0);display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;direction:ltr;';
-        lock.innerHTML = '<div style="background:oklch(0.205 0 0);padding:2rem;border-radius:1rem;border:1px solid oklch(0.275 0 0);text-align:center"><input type="password" id="pwi" placeholder="Password" style="display:block;margin:0 auto 1rem;padding:0.5rem;border-radius:0.5rem;border:1px solid oklch(0.275 0 0);background:oklch(0.145 0 0);color:oklch(0.985 0 0)"><button id="pwb" style="padding:0.5rem 1rem;border-radius:0.5rem;background:oklch(0.922 0 0);color:oklch(0.205 0 0);border:none;cursor:pointer;font-weight:bold">Enter</button></div>';
-        document.body.appendChild(lock);
+            (function () {
+                const pwd = '4293';
+                const lock = document.createElement('div');
+                lock.id = 'lock';
+                lock.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:oklch(0.145 0 0);display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;direction:ltr;';
+                lock.innerHTML = '<div style="background:oklch(0.205 0 0);padding:2rem;border-radius:1rem;border:1px solid oklch(0.275 0 0);text-align:center"><input type="password" id="pwi" placeholder="Password" style="display:block;margin:0 auto 1rem;padding:0.5rem;border-radius:0.5rem;border:1px solid oklch(0.275 0 0);background:oklch(0.145 0 0);color:oklch(0.985 0 0)"><button id="pwb" style="padding:0.5rem 1rem;border-radius:0.5rem;background:oklch(0.922 0 0);color:oklch(0.205 0 0);border:none;cursor:pointer;font-weight:bold">Enter</button></div>';
+                document.body.appendChild(lock);
 
-        const check = () => {
-          if (document.getElementById('pwi').value === pwd) {
-            const el = document.getElementById('lock');
-            if (el) el.remove();
-            init();
-          } else {
-            document.getElementById('pwi').style.borderColor = 'red';
-          }
-        };
-
-        document.getElementById('pwb').onclick = check;
-        document.getElementById('pwi').onkeypress = e => { if (e.key === 'Enter') check(); };
-
-        const init = () => {
-          const run = () => {
-            const $ = id => document.getElementById(id);
-            const IPP = 50, LPC = 500;
-            let conf = [], isSel = !1, cp = 1, sq = '', lpt = null, dlg = null, isBat = !1;
-
-            const extArr = cnt => { const res = []; let d = 0, s = -1; for (let i = 0; i < cnt.length; i++) { if (cnt[i] === '[') { if (d === 0) s = i; d++; } else if (cnt[i] === ']') { d--; if (d === 0 && s !== -1) { res.push(cnt.slice(s, i + 1)); s = -1; } } } return res; };
-
-            const parse = cnt => {
-              conf = [];
-              const arr = extArr(cnt);
-              for (const str of arr) {
-                try {
-                  const data = JSON.parse(str);
-                  if (!Array.isArray(data)) continue;
-                  for (const cfg of data) {
-                    if (!cfg || !cfg.outbounds) continue;
-                    const rm = cfg.remarks || 'Unnamed';
-                    for (const o of cfg.outbounds) {
-                      const p = o?.protocol;
-                      if (!['vless', 'trojan', 'wireguard'].includes(p)) continue;
-                      const tg = o.tag;
-                      let dn = rm;
-                      if (tg && !['proxy', 'dns-out', 'direct', 'block'].includes(tg)) dn = `${rm} - ${tg}`;
-                      const it = { id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), remarks: dn, protocol: p, selected: !1, rawConfig: cfg };
-                      if (p === 'vless' && o.settings?.vnext?.[0]) { it.address = o.settings.vnext[0].address; it.port = o.settings.vnext[0].port; it.vlessLink = genVl(o, dn); }
-                      else if (p === 'trojan' && o.settings?.servers?.[0]) { it.address = o.settings.servers[0].address; it.port = o.settings.servers[0].port; it.trojanLink = genTr(o, dn); }
-                      else if (p === 'wireguard' && o.settings?.peers?.[0]) { const ep = o.settings.peers[0].endpoint || ''; it.address = ep.split(':')[0]; it.port = parseInt(ep.split(':')[1] || '0'); }
-                      conf.push(it);
-                    }
+                const check = () => {
+                  if (document.getElementById('pwi').value === pwd) {
+                    const el = document.getElementById('lock');
+                    if (el) el.remove();
+                    init();
+                  } else {
+                    document.getElementById('pwi').style.borderColor = 'red';
                   }
-                } catch { }
-              }
-              cp = 1; isSel = !1; rndr();
-            };
+                };
 
-            const genVl = (o, rm) => { try { const v = o.settings.vnext[0], u = v.users[0]?.id; if (!u) return null; const st = o.streamSettings || {}, pm = { encryption: 'none', security: 'none', type: st.network || 'tcp', allowInsecure: '0' }; if (st.network === 'ws' && st.wsSettings) { if (st.wsSettings.host) pm.host = st.wsSettings.host; if (st.wsSettings.path) pm.path = st.wsSettings.path; } if (st.security === 'tls' && st.tlsSettings) { pm.security = 'tls'; if (st.tlsSettings.serverName) pm.sni = st.tlsSettings.serverName; if (st.tlsSettings.fingerprint) pm.fp = st.tlsSettings.fingerprint; if (st.tlsSettings.alpn?.length) pm.alpn = st.tlsSettings.alpn.join(','); } return `vless://${u}@${v.address}:${v.port}?${new URLSearchParams(pm).toString()}#${encodeURIComponent(rm)}`; } catch { return null; } };
-            const genTr = (o, rm) => { try { const s = o.settings.servers[0], st = o.streamSettings || {}, pm = { security: 'none', type: st.network || 'tcp', allowInsecure: '0' }; if (st.network === 'ws' && st.wsSettings) { if (st.wsSettings.host) pm.host = st.wsSettings.host; if (st.wsSettings.path) pm.path = st.wsSettings.path; } if (st.security === 'tls' && st.tlsSettings) { pm.security = 'tls'; if (st.tlsSettings.serverName) pm.sni = st.tlsSettings.serverName; if (st.tlsSettings.fingerprint) pm.fp = st.tlsSettings.fingerprint; if (st.tlsSettings.alpn?.length) pm.alpn = st.tlsSettings.alpn.join(','); } return `trojan://${encodeURIComponent(s.password)}@${s.address}:${s.port}?${new URLSearchParams(pm).toString()}#${encodeURIComponent(rm)}`; } catch { return null; } };
+                document.getElementById('pwb').onclick = check;
+                document.getElementById('pwi').onkeypress = e => { if (e.key === 'Enter') check(); };
 
-            const hFu = e => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = ev => parse(ev.target.result); reader.readAsText(file); } };
+                const init = () => {
+                  const run = () => {
+                    const $ = id => document.getElementById(id);
+                    const IPP = 50, LPC = 500;
+                    let conf = [], isSel = !1, cp = 1, sq = '', lpt = null, dlg = null, isBat = !1;
 
-            const gFc = () => { if (!sq.trim()) return conf; const q = sq.toLowerCase(); return conf.filter(c => c.remarks.toLowerCase().includes(q) || c.protocol.toLowerCase().includes(q) || (c.address && c.address.toLowerCase().includes(q))); };
-            const gSc = () => conf.filter(c => c.selected).length;
+                    const extArr = cnt => { const res = []; let d = 0, s = -1; for (let i = 0; i < cnt.length; i++) { if (cnt[i] === '[') { if (d === 0) s = i; d++; } else if (cnt[i] === ']') { d--; if (d === 0 && s !== -1) { res.push(cnt.slice(s, i + 1)); s = -1; } } } return res; };
 
-            const rndr = () => {
-              const f = gFc(), tp = Math.ceil(f.length / IPP), st = (cp - 1) * IPP, pi = f.slice(st, st + IPP);
-              if (conf.length === 0) { $('uploadSection').classList.remove('hidden'); $('configSection').classList.add('hidden'); $('searchRow').classList.add('hidden'); $('normalActions').classList.add('hidden'); $('selectActions').classList.add('hidden'); $('footerText').textContent = 'Upload or paste config to get started'; return; }
-              $('uploadSection').classList.add('hidden'); $('configSection').classList.remove('hidden'); $('searchRow').classList.remove('hidden'); $('normalActions').classList.toggle('hidden', isSel); $('selectActions').classList.toggle('hidden', !isSel); $('batchCopyBtn').classList.toggle('hidden', gSc() === 0); $('selectedCount').textContent = gSc();
-              $('statsText').textContent = f.length + ' configs' + (sq ? ` matching "${sq}"` : ''); $('footerText').textContent = conf.length + ' configs loaded • Long press to select multiple';
-              if (f.length === 0) { $('configGrid').classList.add('hidden'); $('pagination').classList.add('hidden'); $('emptyState').classList.remove('hidden'); return; }
-              $('configGrid').classList.remove('hidden'); $('emptyState').classList.add('hidden');
-              let h = '';
-              for (const c of pi) { h += `<div class="config-card${c.selected ? ' selected' : ''}" data-id="${c.id}"><div class="config-inner">${isSel ? `<div class="config-checkbox${c.selected ? ' checked' : ''}" data-id="${c.id}"></div>` : ''}<div class="config-content"><div class="config-meta"><span class="config-protocol protocol-${c.protocol}">${gIc(c.protocol)} ${c.protocol.toUpperCase()}</span>${c.address ? `<span class="config-address">${c.address}:${c.port}</span>` : ''}</div><p class="config-name">${esc(c.remarks)}</p></div><button class="config-copy" data-id="${c.id}" title="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></div>`; }
-              $('configGrid').innerHTML = h;
-              document.querySelectorAll('.config-card').forEach(el => { const id = el.dataset.id; el.onclick = () => { if (isSel) tgSl(id); }; el.onmousedown = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.onmouseup = el.onmouseleave = () => { if (lpt) clearTimeout(lpt); }; el.ontouchstart = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.ontouchend = () => { if (lpt) clearTimeout(lpt); }; });
-              document.querySelectorAll('.config-copy').forEach(el => { el.onclick = e => { e.stopPropagation(); const c = conf.find(x => x.id === el.dataset.id); if (c) { dlg = c; isBat = !1; opDlg(c.remarks); } }; });
-              document.querySelectorAll('.config-checkbox').forEach(el => { el.onclick = e => { e.stopPropagation(); tgSl(el.dataset.id); }; });
-              if (tp > 1) { $('pageText').textContent = `Page ${cp} of ${tp}`; $('pagination').classList.remove('hidden'); let pgs; if (tp <= 5) pgs = Array.from({ length: tp }, (_, i) => i + 1); else if (cp <= 3) pgs = [1, 2, 3, 4, 5]; else if (cp >= tp - 2) pgs = Array.from({ length: 5 }, (_, i) => tp - 4 + i); else pgs = Array.from({ length: 5 }, (_, i) => cp - 2 + i); let ph = `<button class="page-btn" ${cp === 1 ? 'disabled' : ''} data-page="${cp - 1}">‹</button>`; for (const p of pgs) ph += `<button class="page-btn${p === cp ? ' active' : ''}" data-page="${p}">${p}</button>`; ph += `<button class="page-btn" ${cp === tp ? 'disabled' : ''} data-page="${cp + 1}">›</button>`; $('pagination').innerHTML = ph; document.querySelectorAll('.page-btn').forEach(el => { el.onclick = () => { if (!el.disabled) { cp = parseInt(el.dataset.page); rndr(); } }; }); } else { $('pageText').textContent = ''; $('pagination').classList.add('hidden'); }
-            };
+                    const safeB64 = s => { try { return decodeURIComponent(atob(s.replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return s; } };
 
-            const gIc = p => { const i = { vless: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', trojan: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', wireguard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>' }; return i[p] || i.vless; };
-            const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const tgSl = id => { const c = conf.find(x => x.id === id); if (c) { c.selected = !c.selected; if (!isSel && c.selected) isSel = !0; rndr(); } };
-            const sAll = () => { conf.forEach(c => c.selected = !0); isSel = !0; rndr(); };
-            const sPg = () => { const f = gFc(), st = (cp - 1) * IPP, pids = f.slice(st, st + IPP).map(c => c.id); conf.forEach(c => { if (pids.includes(c.id)) c.selected = !0; }); isSel = !0; rndr(); };
-            const dAll = () => { conf.forEach(c => c.selected = !1); isSel = !1; rndr(); };
-            const clr = () => { conf = []; isSel = !1; cp = 1; sq = ''; $('searchInput').value = ''; rndr(); };
-            const opDlg = t => { $('dialogTitle').textContent = t; $('dialogOverlay').classList.add('open'); };
-            const clDlg = () => { $('dialogOverlay').classList.remove('open'); dlg = null; };
-            const cpLnk = async t => { let l = ''; if (isBat) l = conf.filter(c => c.selected).map(c => c.vlessLink || c.trojanLink || '').filter(Boolean).join('\n'); else if (dlg) l = dlg.vlessLink || dlg.trojanLink || ''; try { await navigator.clipboard.writeText(l); clDlg(); } catch (e) { } };
-            const exp = () => { const l = conf.map(c => c.vlessLink || c.trojanLink || '').filter(Boolean).join('\n'), b = new Blob([l], { type: 'text/plain' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'configs.txt'; a.click(); URL.revokeObjectURL(a.href); };
-            const tgThm = () => { document.body.classList.toggle('dark'); $('sunIcon').classList.toggle('hidden'); $('moonIcon').classList.toggle('hidden'); localStorage.setItem('dark', document.body.classList.contains('dark')); };
+                    const parseUriLinks = cnt => {
+                      const res = [];
+                      const rx = /\b(vless|vmess|trojan|ss):\/\/[^\s]+/g;
+                      const matches = cnt.match(rx) || [];
+                      matches.forEach(link => {
+                        try {
+                          let it = null;
+                          if (link.startsWith('vmess://')) {
+                            const json = JSON.parse(safeB64(link.replace('vmess://', '')));
+                            it = { remarks: json.ps || 'VMess', protocol: 'vmess', address: json.add, port: json.port, rawLink: link };
+                          } else if (link.startsWith('vless://')) {
+                            const u = new URL(link);
+                            it = { remarks: decodeURIComponent(u.hash.slice(1)) || 'VLESS', protocol: 'vless', address: u.hostname, port: u.port, rawLink: link };
+                          } else if (link.startsWith('trojan://')) {
+                            const u = new URL(link);
+                            it = { remarks: decodeURIComponent(u.hash.slice(1)) || 'Trojan', protocol: 'trojan', address: u.hostname, port: u.port, rawLink: link };
+                          } else if (link.startsWith('ss://')) {
+                            let parts = link.replace('ss://', '').split('#');
+                            let name = parts[1] ? decodeURIComponent(parts[1]) : 'SS';
+                            let main = parts[0];
+                            let server = '';
+                            if (main.includes('@')) {
+                              server = main.split('@')[1];
+                            } else {
+                              const dec = safeB64(main);
+                              const idx = dec.lastIndexOf('@');
+                              if (idx !== -1) server = dec.substring(idx + 1);
+                            }
+                            const splt = server.split(':');
+                            it = { remarks: name, protocol: 'ss', address: splt[0] || 'N/A', port: splt[1] || '0', rawLink: link };
+                          }
+                          if (it) res.push(it);
+                        } catch (e) { console.log('Link parse err', link, e); }
+                      });
+                      return res;
+                    };
 
-            const initApp = async () => {
-              $('themeToggle').onclick = tgThm;
-              $('uploadBtn').onclick = () => $('fileInput').click();
-              $('fileInput').onchange = hFu;
-              $('parseBtn').onclick = () => parse($('pasteArea').value);
-              $('searchInput').oninput = e => { sq = e.target.value; cp = 1; rndr(); };
-              $('selectAllBtn').onclick = sAll;
-              $('selectPageBtn').onclick = sPg;
-              $('deselectBtn').onclick = dAll;
-              $('clearBtn').onclick = clr;
-              $('batchCopyBtn').onclick = () => { isBat = !0; opDlg('Copy ' + gSc() + ' Configs'); };
-              $('exportBtn').onclick = exp;
-              $('dialogOverlay').onclick = e => { if (e.target === $('dialogOverlay')) clDlg(); };
-              $('v2rayBtn').onclick = () => cpLnk('v2ray');
-              $('npvtBtn').onclick = () => cpLnk('npvt');
-              if (localStorage.getItem('dark') === 'false') tgThm();
-              try { const r = await fetch('conf.json'); if (r.ok) { const t = await r.text(); parse(t); } else { rndr(); } } catch (e) { rndr(); }
-            };
+                    const parse = cnt => {
+                      conf = [];
 
-            initApp();
-          };
+                      const links = parseUriLinks(cnt);
+                      links.forEach(l => {
+                        conf.push({
+                          id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                          ...l,
+                          selected: !1
+                        });
+                      });
 
-          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-          else run();
-        };
-      })();
+                      const arr = extArr(cnt);
+                      for (const str of arr) {
+                        try {
+                          const data = JSON.parse(str);
+                          if (!Array.isArray(data)) continue;
+                          for (const cfg of data) {
+                            if (!cfg || !cfg.outbounds) continue;
+                            const rm = cfg.remarks || 'Unnamed';
+                            for (const o of cfg.outbounds) {
+                              const p = o?.protocol;
+                              if (!['vless', 'trojan', 'wireguard'].includes(p)) continue;
+                              const tg = o.tag;
+                              let dn = rm;
+                              if (tg && !['proxy', 'dns-out', 'direct', 'block'].includes(tg)) dn = `${rm} - ${tg}`;
+                              const it = { id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), remarks: dn, protocol: p, selected: !1, rawConfig: cfg };
+                              if (p === 'vless' && o.settings?.vnext?.[0]) {
+                                it.address = o.settings.vnext[0].address;
+                                it.port = o.settings.vnext[0].port;
+                                it.vlessLink = genVl(o, dn);
+                                it.rawLink = it.vlessLink;
+                              }
+                              else if (p === 'trojan' && o.settings?.servers?.[0]) {
+                                it.address = o.settings.servers[0].address;
+                                it.port = o.settings.servers[0].port;
+                                it.trojanLink = genTr(o, dn);
+                                it.rawLink = it.trojanLink;
+                              }
+                              else if (p === 'wireguard' && o.settings?.peers?.[0]) {
+                                const ep = o.settings.peers[0].endpoint || '';
+                                it.address = ep.split(':')[0];
+                                it.port = parseInt(ep.split(':')[1] || '0');
+                              }
+                              conf.push(it);
+                            }
+                          }
+                        } catch { }
+                      }
+                      cp = 1; isSel = !1; rndr();
+                    };
+
+                    const genVl = (o, rm) => { try { const v = o.settings.vnext[0], u = v.users[0]?.id; if (!u) return null; const st = o.streamSettings || {}, pm = { encryption: 'none', security: 'none', type: st.network || 'tcp', allowInsecure: '0' }; if (st.network === 'ws' && st.wsSettings) { if (st.wsSettings.host) pm.host = st.wsSettings.host; if (st.wsSettings.path) pm.path = st.wsSettings.path; } if (st.security === 'tls' && st.tlsSettings) { pm.security = 'tls'; if (st.tlsSettings.serverName) pm.sni = st.tlsSettings.serverName; if (st.tlsSettings.fingerprint) pm.fp = st.tlsSettings.fingerprint; if (st.tlsSettings.alpn?.length) pm.alpn = st.tlsSettings.alpn.join(','); } return `vless://${u}@${v.address}:${v.port}?${new URLSearchParams(pm).toString()}#${encodeURIComponent(rm)}`; } catch { return null; } };
+                    const genTr = (o, rm) => { try { const s = o.settings.servers[0], st = o.streamSettings || {}, pm = { security: 'none', type: st.network || 'tcp', allowInsecure: '0' }; if (st.network === 'ws' && st.wsSettings) { if (st.wsSettings.host) pm.host = st.wsSettings.host; if (st.wsSettings.path) pm.path = st.wsSettings.path; } if (st.security === 'tls' && st.tlsSettings) { pm.security = 'tls'; if (st.tlsSettings.serverName) pm.sni = st.tlsSettings.serverName; if (st.tlsSettings.fingerprint) pm.fp = st.tlsSettings.fingerprint; if (st.tlsSettings.alpn?.length) pm.alpn = st.tlsSettings.alpn.join(','); } return `trojan://${encodeURIComponent(s.password)}@${s.address}:${s.port}?${new URLSearchParams(pm).toString()}#${encodeURIComponent(rm)}`; } catch { return null; } };
+
+                    const hFu = e => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = ev => parse(ev.target.result); reader.readAsText(file); } };
+
+                    const gFc = () => { if (!sq.trim()) return conf; const q = sq.toLowerCase(); return conf.filter(c => c.remarks.toLowerCase().includes(q) || c.protocol.toLowerCase().includes(q) || (c.address && c.address.toLowerCase().includes(q))); };
+                    const gSc = () => conf.filter(c => c.selected).length;
+
+                    const rndr = () => {
+                      const f = gFc(), tp = Math.ceil(f.length / IPP), st = (cp - 1) * IPP, pi = f.slice(st, st + IPP);
+                      if (conf.length === 0) { $('uploadSection').classList.remove('hidden'); $('configSection').classList.add('hidden'); $('searchRow').classList.add('hidden'); $('normalActions').classList.add('hidden'); $('selectActions').classList.add('hidden'); $('footerText').textContent = 'Upload or paste config to get started'; return; }
+                      $('uploadSection').classList.add('hidden'); $('configSection').classList.remove('hidden'); $('searchRow').classList.remove('hidden'); $('normalActions').classList.toggle('hidden', isSel); $('selectActions').classList.toggle('hidden', !isSel); $('batchCopyBtn').classList.toggle('hidden', gSc() === 0); $('selectedCount').textContent = gSc();
+                      $('statsText').textContent = f.length + ' configs' + (sq ? ` matching "${sq}"` : ''); $('footerText').textContent = conf.length + ' configs loaded • Long press to select multiple';
+                      if (f.length === 0) { $('configGrid').classList.add('hidden'); $('pagination').classList.add('hidden'); $('emptyState').classList.remove('hidden'); return; }
+                      $('configGrid').classList.remove('hidden'); $('emptyState').classList.add('hidden');
+                      let h = '';
+                      for (const c of pi) { h += `<div class="config-card${c.selected ? ' selected' : ''}" data-id="${c.id}"><div class="config-inner">${isSel ? `<div class="config-checkbox${c.selected ? ' checked' : ''}" data-id="${c.id}"></div>` : ''}<div class="config-content"><div class="config-meta"><span class="config-protocol protocol-${c.protocol}">${gIc(c.protocol)} ${c.protocol.toUpperCase()}</span>${c.address ? `<span class="config-address">${c.address}:${c.port}</span>` : ''}</div><p class="config-name">${esc(c.remarks)}</p></div><button class="config-copy" data-id="${c.id}" title="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></div>`; }
+                      $('configGrid').innerHTML = h;
+                      document.querySelectorAll('.config-card').forEach(el => { const id = el.dataset.id; el.onclick = () => { if (isSel) tgSl(id); }; el.onmousedown = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.onmouseup = el.onmouseleave = () => { if (lpt) clearTimeout(lpt); }; el.ontouchstart = () => { lpt = setTimeout(() => tgSl(id), LPC); }; el.ontouchend = () => { if (lpt) clearTimeout(lpt); }; });
+                      document.querySelectorAll('.config-copy').forEach(el => { el.onclick = e => { e.stopPropagation(); const c = conf.find(x => x.id === el.dataset.id); if (c) { dlg = c; isBat = !1; opDlg(c.remarks); } }; });
+                      document.querySelectorAll('.config-checkbox').forEach(el => { el.onclick = e => { e.stopPropagation(); tgSl(el.dataset.id); }; });
+                      if (tp > 1) { $('pageText').textContent = `Page ${cp} of ${tp}`; $('pagination').classList.remove('hidden'); let pgs; if (tp <= 5) pgs = Array.from({ length: tp }, (_, i) => i + 1); else if (cp <= 3) pgs = [1, 2, 3, 4, 5]; else if (cp >= tp - 2) pgs = Array.from({ length: 5 }, (_, i) => tp - 4 + i); else pgs = Array.from({ length: 5 }, (_, i) => cp - 2 + i); let ph = `<button class="page-btn" ${cp === 1 ? 'disabled' : ''} data-page="${cp - 1}">‹</button>`; for (const p of pgs) ph += `<button class="page-btn${p === cp ? ' active' : ''}" data-page="${p}">${p}</button>`; ph += `<button class="page-btn" ${cp === tp ? 'disabled' : ''} data-page="${cp + 1}">›</button>`; $('pagination').innerHTML = ph; document.querySelectorAll('.page-btn').forEach(el => { el.onclick = () => { if (!el.disabled) { cp = parseInt(el.dataset.page); rndr(); } }; }); } else { $('pageText').textContent = ''; $('pagination').classList.add('hidden'); }
+                    };
+
+                    const gIc = p => { const i = { vless: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', trojan: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', wireguard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>', vmess: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>', ss: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>' }; return i[p] || i.vless; };
+                    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const tgSl = id => { const c = conf.find(x => x.id === id); if (c) { c.selected = !c.selected; if (!isSel && c.selected) isSel = !0; rndr(); } };
+                    const sAll = () => { conf.forEach(c => c.selected = !0); isSel = !0; rndr(); };
+                    const sPg = () => { const f = gFc(), st = (cp - 1) * IPP, pids = f.slice(st, st + IPP).map(c => c.id); conf.forEach(c => { if (pids.includes(c.id)) c.selected = !0; }); isSel = !0; rndr(); };
+                    const dAll = () => { conf.forEach(c => c.selected = !1); isSel = !1; rndr(); };
+                    const clr = () => { conf = []; isSel = !1; cp = 1; sq = ''; $('searchInput').value = ''; rndr(); };
+                    const opDlg = t => { $('dialogTitle').textContent = t; $('dialogOverlay').classList.add('open'); };
+                    const clDlg = () => { $('dialogOverlay').classList.remove('open'); dlg = null; };
+                    const cpLnk = async t => { let l = ''; if (isBat) l = conf.filter(c => c.selected).map(c => c.rawLink || '').filter(Boolean).join('\n'); else if (dlg) l = dlg.rawLink || ''; try { await navigator.clipboard.writeText(l); clDlg(); } catch (e) { } };
+                    const exp = () => { const l = conf.map(c => c.rawLink || '').filter(Boolean).join('\n'), b = new Blob([l], { type: 'text/plain' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'configs.txt'; a.click(); URL.revokeObjectURL(a.href); };
+                    const tgThm = () => { document.body.classList.toggle('dark'); $('sunIcon').classList.toggle('hidden'); $('moonIcon').classList.toggle('hidden'); localStorage.setItem('dark', document.body.classList.contains('dark')); };
+
+                    const initApp = async () => {
+                      $('themeToggle').onclick = tgThm;
+                      $('uploadBtn').onclick = () => $('fileInput').click();
+                      $('fileInput').onchange = hFu;
+                      $('parseBtn').onclick = () => parse($('pasteArea').value);
+                      $('searchInput').oninput = e => { sq = e.target.value; cp = 1; rndr(); };
+                      $('selectAllBtn').onclick = sAll;
+                      $('selectPageBtn').onclick = sPg;
+                      $('deselectBtn').onclick = dAll;
+                      $('clearBtn').onclick = clr;
+                      $('batchCopyBtn').onclick = () => { isBat = !0; opDlg('Copy ' + gSc() + ' Configs'); };
+                      $('exportBtn').onclick = exp;
+                      $('dialogOverlay').onclick = e => { if (e.target === $('dialogOverlay')) clDlg(); };
+                      $('v2rayBtn').onclick = () => cpLnk('v2ray');
+                      $('npvtBtn').onclick = () => cpLnk('npvt');
+                      if (localStorage.getItem('dark') === 'false') tgThm();
+                      try { const r = await fetch('conf.json'); if (r.ok) { const t = await r.text(); parse(t); } else { rndr(); } } catch (e) { rndr(); }
+                    };
+
+                    initApp();
+                  };
+
+                  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+                  else run();
+                };
+              })();
     </script>
     <header class="header">
       <div class="header-inner">
